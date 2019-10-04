@@ -3,8 +3,7 @@
 const path = require('path');
 const fs = require('fs');
 const posthtml = require('posthtml')
-const integrityStringForText = require("./lib/crypto");
-
+const revHash = require('rev-hash');
 let tags = [];
 let outputPath = '';
 
@@ -49,10 +48,43 @@ function extractStyles() {
 }
 
 function processTags() {
-  tags.forEach((tag) => {
-    let fileContent = fs.readFileSync(path.join(outputPath,tag.name));
-    console.log(integrityStringForText(fileContent));
-  });
+  return function(tree) {
+    tags = tags.map((tag) => {
+      let fileContent = fs.readFileSync(path.join(outputPath,tag.name));
+      let contentHash = revHash(fileContent);
+      let extension = path.extname(tag.name)
+      let fileName = tag.name.replace(extension, '');
+      let newFileName = `${fileName}-${contentHash}${extension}`;
+      tag.outFileName = newFileName;
+      fs.renameSync(path.join(outputPath,tag.name), path.join(outputPath, newFileName));
+      return tag;
+    });
+  return tree;
+  }
+}
+
+function updateHTML() {
+  return function(tree) {
+    let html = tree.find(node => node.tag === 'html');
+    let head = html.content.find(node => node.tag === 'head');
+    let body = html.content.find(node => node.tag === 'body');
+
+    body.content.forEach(node => {
+      let matchedTag = tags.filter(tag => tag.node === node);
+      if(matchedTag.length) {
+        node.attrs.src = matchedTag[0].outFileName;
+      }
+    });
+
+    head.content.forEach(node => {
+      let matchedTag = tags.filter(tag => tag.node === node);
+      if(matchedTag.length) {
+        node.attrs.href = matchedTag[0].outFileName;
+      }
+    });
+
+    return tree;
+  }
 }
 
 module.exports = {
@@ -64,20 +96,24 @@ module.exports = {
   },
 
   postBuild(result) {
-    console.log(this.app.env, 'prd');
+    if(this.app.env === 'production') {
+      outputPath = result.directory
 
-    outputPath = result.directory
+      const index = fs.readFileSync(path.join(outputPath, "index.html"), {
+        encoding: "utf8"
+      });
 
-    const index = fs.readFileSync(path.join(outputPath, "index.html"), {
-      encoding: "utf8"
-    });
+      const html = posthtml()
+        .use(extractScript())
+        .use(extractStyles())
+        .use(processTags())
+        .use(updateHTML())
+        .process(index, { sync: true })
+        .html;
 
-    const html = posthtml()
-      .use(extractScript())
-      .use(extractStyles())
-      .process(index, { sync: true })
-      .html
-
-    processTags();
+      fs.writeFileSync(path.join(outputPath, "index.html"), html, {
+        encoding: "utf8"
+      });
+    }
   }
 };
