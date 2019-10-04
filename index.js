@@ -6,7 +6,7 @@ const posthtml = require('posthtml')
 const revHash = require('rev-hash');
 let tags = [];
 let outputPath = '';
-
+let assetMap = {};
 function extractScript() {
   return function(tree) {
     let html = tree.find(node => node.tag === 'html');
@@ -50,18 +50,48 @@ function extractStyles() {
 function processTags() {
   return function(tree) {
     tags = tags.map((tag) => {
-      let fileContent = fs.readFileSync(path.join(outputPath,tag.name));
-      let contentHash = revHash(fileContent);
-      let extension = path.extname(tag.name)
-      let fileName = tag.name.replace(extension, '');
-      let newFileName = `${fileName}-${contentHash}${extension}`;
+      let newFileName = generateHash(path.join(outputPath, tag.name));
       tag.outFileName = newFileName;
-      fs.renameSync(path.join(outputPath,tag.name), path.join(outputPath, newFileName));
+      assetMap[tag.name] = newFileName;
       return tag;
     });
   return tree;
   }
 }
+
+function generateHash(filePath) {
+  let fileContent = fs.readFileSync(filePath);
+  let extension = path.extname(filePath)
+  let fileName = filePath.replace(extension, '');
+
+  let contentHash = revHash(fileContent);
+
+  let newFileName = `${fileName}-${contentHash}${extension}`;
+
+  fs.renameSync(filePath, newFileName);
+
+  return newFileName.replace(outputPath, '')
+}
+
+function processStaticAssets() {
+  let allAssets = getAllFiles(outputPath);
+  let staticAssets = allAssets.filter((asset) => {
+    return !/.*(.js|.css|.map|.xml|.txt|.html)/.test(asset);
+  });
+  staticAssets.forEach((staticAsset) => {
+    let newFileName = generateHash(staticAsset);
+    assetMap[staticAsset.replace(outputPath, '')] = newFileName;
+  });
+}
+
+const getAllFiles = (dir) => {
+  return fs.readdirSync(dir).reduce((files, file) => {
+    const name = path.join(dir, file);
+    const isDirectory = fs.statSync(name).isDirectory();
+    return isDirectory ? [...files, ...getAllFiles(name)] : [...files, name];
+  }, []);
+};
+
 
 function updateHTML() {
   return function(tree) {
@@ -97,7 +127,7 @@ module.exports = {
 
   postBuild(result) {
     if(this.app.env === 'production') {
-      outputPath = result.directory
+      outputPath = result.directory;
 
       const index = fs.readFileSync(path.join(outputPath, "index.html"), {
         encoding: "utf8"
@@ -114,6 +144,10 @@ module.exports = {
       fs.writeFileSync(path.join(outputPath, "index.html"), html, {
         encoding: "utf8"
       });
+
+      processStaticAssets();
+
+      fs.writeFileSync(path.join(outputPath, "assets/assetMap.json"), JSON.stringify(assetMap, null, 2));
     }
   }
 };
