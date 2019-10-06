@@ -4,9 +4,13 @@ const path = require('path');
 const fs = require('fs');
 const posthtml = require('posthtml')
 const revHash = require('rev-hash');
+const babel = require('babel-core');
+
 let tags = [];
 let outputPath = '';
+let keyMap = {};
 let assetMap = {};
+
 function extractScript() {
   return function(tree) {
     let html = tree.find(node => node.tag === 'html');
@@ -80,6 +84,7 @@ function processStaticAssets() {
   });
   staticAssets.forEach((staticAsset) => {
     let newFileName = generateHash(staticAsset);
+    keyMap[path.basename(staticAsset)] = path.basename(newFileName);
     assetMap[staticAsset.replace(outputPath, '')] = newFileName;
   });
 }
@@ -117,6 +122,37 @@ function updateHTML() {
   }
 }
 
+function replaceStaticAssets(parent) {
+  const replacer = require('./lib/babel-i18n-transform');
+  const replacer6 = require('./lib/babel-i18n-transform6');
+
+  const VersionChecker = require('ember-cli-version-checker');
+
+  let allAssets = getAllFiles(outputPath);
+  let jsAssets = allAssets.filter((asset) => {
+    return asset.endsWith('.js') &&
+      !asset.includes('vendor') &&
+      !asset.includes('manifest') &&
+      !asset.includes('i18n') &&
+      !asset.includes('test');
+  });
+
+  let checker = new VersionChecker(parent).for('ember-cli-babel', 'npm');
+  let plugins;
+
+  if (checker.satisfies('^5.0.0')) {
+    plugins = [replacer];
+  } else {
+    plugins = [replacer6];
+  }
+
+  for (let asset of jsAssets) {
+    let assetContents = fs.readFileSync(asset, { encoding: 'utf8' });
+    let minified = babel.transform(assetContents, { plugins, minified: true });
+    fs.writeFileSync(asset, minified.code, { encoding: 'utf8' });
+  }
+}
+
 module.exports = {
   name: require('./package').name,
 
@@ -128,7 +164,11 @@ module.exports = {
   postBuild(result) {
     if(this.app.env === 'production') {
       outputPath = result.directory;
-
+      /*
+        TODO: Split into two threads
+        One thread: Update index.html
+        Another thread: Update static assets.
+      */
       const index = fs.readFileSync(path.join(outputPath, "index.html"), {
         encoding: "utf8"
       });
@@ -146,6 +186,10 @@ module.exports = {
       });
 
       processStaticAssets();
+
+      process.env.keyMap = JSON.stringify(keyMap);
+
+      replaceStaticAssets(this.parent);
 
       fs.writeFileSync(path.join(outputPath, "assets/assetMap.json"), JSON.stringify(assetMap, null, 2));
     }
