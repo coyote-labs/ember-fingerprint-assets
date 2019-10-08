@@ -11,7 +11,7 @@ let outputPath = '';
 let keyMap = {};
 let assetMap = {};
 
-function extractScript() {
+const extractScript = () => {
   return function(tree) {
     let html = tree.find(node => node.tag === 'html');
     let body = html.content.find(node => node.tag === 'body');
@@ -31,7 +31,7 @@ function extractScript() {
   }
 }
 
-function extractStyles() {
+const extractStyles = () => {
   return function(tree) {
     let html = tree.find(node => node.tag === 'html');
     let head = html.content.find(node => node.tag === 'head');
@@ -51,7 +51,7 @@ function extractStyles() {
   }
 }
 
-function processTags() {
+const processTags = () => {
   return function(tree) {
     tags = tags.map((tag) => {
       let newFileName = generateHash(path.join(outputPath, tag.name));
@@ -63,7 +63,7 @@ function processTags() {
   }
 }
 
-function generateHash(filePath) {
+const generateHash = (filePath) => {
   let fileContent = fs.readFileSync(filePath);
   let extension = path.extname(filePath)
   let fileName = filePath.replace(extension, '');
@@ -77,7 +77,7 @@ function generateHash(filePath) {
   return newFileName.replace(outputPath, '')
 }
 
-function processStaticAssets() {
+const processStaticAssets = () => {
   let allAssets = getAllFiles(outputPath);
   let staticAssets = allAssets.filter((asset) => {
     return !/.*(.js|.css|.map|.xml|.txt|.html)/.test(asset);
@@ -98,7 +98,7 @@ const getAllFiles = (dir) => {
 };
 
 
-function updateHTML() {
+const updateHTML = () => {
   return function(tree) {
     let html = tree.find(node => node.tag === 'html');
     let head = html.content.find(node => node.tag === 'head');
@@ -122,7 +122,7 @@ function updateHTML() {
   }
 }
 
-function replaceStaticAssets(parent) {
+const replaceStaticAssets = (parent) => {
   const replacer = require('./lib/babel-i18n-transform');
   const replacer6 = require('./lib/babel-i18n-transform6');
 
