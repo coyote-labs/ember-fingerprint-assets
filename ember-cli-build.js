@@ -15,5 +15,14 @@ module.exports = function(defaults) {
     behave. You most likely want to be modifying `./index.js` or app's build file
   */
 
-  return require('@embroider/compat').compatBuild(app, Webpack);
+  return require('@embroider/compat').compatBuild(app, Webpack, {
+    packagerOptions: {
+      webpackConfig: {
+        output: EmberAddon.env() === 'development'? {
+          filename: `chunk.[name]`,
+          chunkFilename: `chunk.[name]`,
+        } : {}
+      }
+    }
+  });
 };
