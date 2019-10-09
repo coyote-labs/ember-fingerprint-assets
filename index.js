@@ -10,11 +10,18 @@ const postcss = require('postcss')
 
 let outputPath = '';
 let assetMap = {};
+let isEmbroider = false;
+let chunkFiles = [];
 
 const processAssets = () => {
   let allAssets = getAllFiles(outputPath);
   let fingerPrintAssets = allAssets.filter((asset) => {
-    return !/.*(.map|.xml|.txt|.html)/.test(asset) && !asset.includes('chunk') ;
+    if(asset.includes('chunk')){
+      isEmbroider = true;
+      chunkFiles.push(asset);
+      return false
+    }
+    return !/.*(.map|.xml|.txt|.html)/.test(asset);
   });
   fingerPrintAssets.forEach((staticAsset) => {
     let newFileName = generateHash(staticAsset, outputPath);
@@ -70,6 +77,13 @@ const replaceStaticAssetsinJS = () => {
   }
 }
 
+const reComputeChunkHash = () => {
+  chunkFiles.forEach((chunkFile) => {
+    let newFileName = generateHash(chunkFile, outputPath, isEmbroider);
+    assetMap[chunkFile.replace(outputPath, '')] = newFileName;
+  })
+}
+
 const updateHTML = () => {
   return function(tree) {
     let html = tree.find(node => node.tag === 'html');
@@ -116,6 +130,10 @@ module.exports = {
       processAssets();
       await replaceStaticAssetsinCSS();
       replaceStaticAssetsinJS();
+
+      if(isEmbroider) {
+        reComputeChunkHash();
+      }
 
       const index = fs.readFileSync(path.join(outputPath, "index.html"), {
         encoding: "utf8"
