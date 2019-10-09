@@ -8,6 +8,7 @@ const posthtml = require('posthtml')
 const babel = require('babel-core');
 const postcss = require('postcss')
 
+let appEnv;
 let outputPath = '';
 let assetMap = {};
 let isEmbroider = false;
@@ -116,11 +117,11 @@ module.exports = {
   name: require('./package').name,
 
   included: function (app) {
-    this.app = app;
+    appEnv = app.env;
   },
 
   async postBuild(result) {
-    if(this.app.env === 'production') {
+    if(appEnv === 'production') {
       outputPath = result.directory;
       /*
         TODO: Split into two threads
