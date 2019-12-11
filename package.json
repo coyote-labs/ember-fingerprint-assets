@@ -1,7 +1,7 @@
 {
-  "name": "ember-fingerprint-assets",
-  "version": "0.0.0",
-  "description": "The default blueprint for ember-cli addons.",
+  "name": "@coyote-labs/ember-fingerprint-assets",
+  "version": "0.0.1",
+  "description": "Fingerprint assets in ember build",
   "keywords": [
     "ember-addon"
   ],

@@ -1,7 +1,9 @@
 ember-fingerprint-assets
 ==============================================================================
 
-[Short description of the addon.]
+Work in Progress.
+
+Fingereprint assets of ember build.
 
 
 Compatibility
