@@ -10,7 +10,7 @@ const postcss = require('postcss')
 
 let appEnv;
 let outputPath = '';
-let assetMap = {};
+let assetMap = { "assets": {} };
 let isEmbroider = false;
 let chunkFiles = [];
 
@@ -26,7 +26,7 @@ const processAssets = () => {
   });
   fingerPrintAssets.forEach((staticAsset) => {
     let newFileName = generateHash(staticAsset, outputPath);
-    assetMap[staticAsset.replace(outputPath, '')] = newFileName;
+    assetMap.assets[staticAsset.replace(outputPath, '')] = newFileName;
   });
 }
 
@@ -81,7 +81,7 @@ const replaceStaticAssetsinJS = () => {
 const reComputeChunkHash = () => {
   chunkFiles.forEach((chunkFile) => {
     let newFileName = generateHash(chunkFile, outputPath, isEmbroider);
-    assetMap[chunkFile.replace(outputPath, '')] = newFileName;
+    assetMap.assets[chunkFile.replace(outputPath, '')] = newFileName;
   })
 }
 
@@ -93,7 +93,7 @@ const updateHTML = () => {
 
     body.content.forEach(node => {
       if(node && node.attrs && node.attrs.src) {
-        let newFileName = assetMap[node.attrs.src]
+        let newFileName = assetMap.assets[node.attrs.src]
         if(newFileName) {
           node.attrs.src = newFileName;
         }
@@ -102,7 +102,7 @@ const updateHTML = () => {
 
     head.content.forEach(node => {
       if(node && node.attrs && node.attrs.href) {
-        let newFileName = assetMap[node.attrs.href]
+        let newFileName = assetMap.assets[node.attrs.href]
         if(newFileName) {
           node.attrs.href = newFileName;
         }
@@ -122,7 +122,7 @@ module.exports = {
 
   async postBuild(result) {
     if(appEnv === 'production') {
-      outputPath = result.directory;
+      outputPath = `${result.directory}/`;
       /*
         TODO: Split into two threads
         One thread: Update index.html
