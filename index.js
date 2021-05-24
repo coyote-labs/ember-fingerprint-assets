@@ -9,6 +9,7 @@ const babel = require('babel-core');
 const postcss = require('postcss')
 
 let appEnv;
+let root_url;
 let outputPath = '';
 let assetMap = { "assets": {} };
 let isEmbroider = false;
@@ -26,7 +27,7 @@ const processAssets = () => {
   });
   fingerPrintAssets.forEach((staticAsset) => {
     let newFileName = generateHash(staticAsset, outputPath);
-    assetMap.assets[staticAsset.replace(outputPath, '')] = newFileName;
+    assetMap.assets[staticAsset.replace(outputPath, root_url)] = newFileName;
   });
 }
 
@@ -117,6 +118,8 @@ module.exports = {
   name: require('./package').name,
 
   included: function (app) {
+    let { rootURL } = app.project.config(app.env);
+    root_url = rootURL;
     appEnv = app.env;
   },
 
