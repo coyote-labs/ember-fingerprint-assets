@@ -9,24 +9,23 @@ const babel = require('babel-core');
 const postcss = require('postcss')
 
 let appEnv;
+let root_url;
 let outputPath = '';
 let assetMap = { "assets": {} };
-let isEmbroider = false;
-let chunkFiles = [];
+let reComputeFiles = [];
 
-const processAssets = () => {
+const processStaticAssets = () => {
   let allAssets = getAllFiles(outputPath);
   let fingerPrintAssets = allAssets.filter((asset) => {
-    if(asset.includes('chunk')){
-      isEmbroider = true;
-      chunkFiles.push(asset);
-      return false
+    if(/.*(.js|.css)/.test(asset)) {
+      reComputeFiles.push(asset);
+      return false;
     }
     return !/.*(.map|.xml|.txt|.html)/.test(asset);
   });
   fingerPrintAssets.forEach((staticAsset) => {
-    let newFileName = generateHash(staticAsset, outputPath);
-    assetMap.assets[staticAsset.replace(outputPath, '')] = newFileName;
+    let newFileName = generateHash(staticAsset, outputPath, root_url);
+    assetMap.assets[staticAsset.replace(outputPath, root_url)] = newFileName;
   });
 }
 
@@ -78,10 +77,10 @@ const replaceStaticAssetsinJS = () => {
   }
 }
 
-const reComputeChunkHash = () => {
-  chunkFiles.forEach((chunkFile) => {
-    let newFileName = generateHash(chunkFile, outputPath, isEmbroider);
-    assetMap.assets[chunkFile.replace(outputPath, '')] = newFileName;
+const processJSCSS = () => {
+  reComputeFiles.forEach((asset) => {
+    let newFileName = generateHash(asset, outputPath, root_url);
+    assetMap.assets[asset.replace(outputPath, root_url)] = newFileName;
   })
 }
 
@@ -117,6 +116,8 @@ module.exports = {
   name: require('./package').name,
 
   included: function (app) {
+    let { rootURL } = app.project.config(app.env);
+    root_url = rootURL;
     appEnv = app.env;
   },
 
@@ -128,13 +129,11 @@ module.exports = {
         One thread: Update index.html
         Another thread: Update static assets.
       */
-      processAssets();
+      processStaticAssets();
       await replaceStaticAssetsinCSS();
       replaceStaticAssetsinJS();
 
-      if(isEmbroider) {
-        reComputeChunkHash();
-      }
+      processJSCSS();
 
       const index = fs.readFileSync(path.join(outputPath, "index.html"), {
         encoding: "utf8"
