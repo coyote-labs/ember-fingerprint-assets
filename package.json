@@ -1,6 +1,6 @@
 {
   "name": "@coyote-labs/ember-fingerprint-assets",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Fingerprint assets in ember build",
   "keywords": [
     "ember-addon"
